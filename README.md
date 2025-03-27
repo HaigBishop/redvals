@@ -83,6 +83,7 @@ red_distance, mrca_node_id = red_trees.dist_between_nodes("bac00000001", "RS_GCF
 ### Original Newick Tree Files
  - `./trees/bac120_r220.tree`
  - `./trees/ar53_r220.tree`
+
 These are the GTDB phylogenetic trees (release 220) in Newick format. Obtained from: https://gtdb.ecogenomic.org/downloads
 
 Example Usage:
@@ -104,6 +105,7 @@ print("Number of internal nodes:", len(nonterminal_nodes))
 ### RED Values TSV Files
  - `./red_values/gtdbtk_r220_bac120.tsv`
  - `./red_values/gtdbtk_r220_ar53.tsv`
+
 These TSV files contain the RED values for all nodes in each tree. They originate from the release 220 gtdbtk_package directory from: https://gtdb.ecogenomic.org/downloads
 i.e. https://data.ace.uq.edu.au/public/gtdb/data/releases/release220/220.0/auxillary_files/gtdbtk_package/full_package/
 
@@ -112,6 +114,7 @@ There is one row for each node (terminal and nonterminal). The second column hol
 ### Decorated Tree Files
  - `./decorated_trees/bac120_r220_decorated.pkl`
  - `./decorated_trees/ar53_r220_decorated.pkl`
+
 These files are Python pickle files, each containing a Bio.Phylo.Newick.Tree object. Loading these objects (see below) results in the same object as loading the .tree files (as above), but the difference is that they are decorated with RED values, and RED distances.
 
 Example Usage:
