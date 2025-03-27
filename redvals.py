@@ -582,18 +582,28 @@ class RedTree:
         return self.get_node_info_dict[node_id].red_distance
 
 class NodeInfo:
+    """Container for information about a node in a decorated GTDB phylogenetic tree.
+    
+    Attributes:
+        domain (str): Domain of the node ("bac" or "arc")
+        gtdb_id (str): GTDB identifier for the node (e.g., "GB_GCA_002687935.1")
+        redvals_id (str): Internal ID assigned by redvals (e.g., "bac00001342")
+        red_value (float): RED value for the node
+        is_terminal (bool): Whether the node is a terminal/leaf node (True) or an internal node (False)
+        red_distance (float): RED distance between two leaf nodes which share this node as their MRCA, calculated as 2 * (1 - red_value)
+    """
+    
     def __init__(self, domain, red_value, gtdb_id, redvals_id, is_terminal, red_distance=None):
-        """
-        Initialise the NodeInfo object.
-        """
-        self.domain = domain            # "bac" or "arc"
-        self.gtdb_id = gtdb_id          # e.g. "GB_GCA_002687935.1" or None
-        self.redvals_id = redvals_id    # e.g. "bac00001342"
-        self.red_value = red_value      # e.g. 0.95
-        self.is_terminal = is_terminal  # True or False
+        """Initialize a NodeInfo object with information about a tree node."""
+        self.domain = domain
+        self.gtdb_id = gtdb_id
+        self.redvals_id = redvals_id
+        self.red_value = red_value
+        self.is_terminal = is_terminal
         self.red_distance = None if red_value is None else (1 - red_value) * 2 if red_distance is None else red_distance
 
     def __str__(self):
+        """Return a human-readable string representation of the NodeInfo object."""
         return (f"NodeInfo:\n"
                 f"  redvals ID: {self.redvals_id}\n"
                 f"  GTDB ID: {self.gtdb_id}\n"
@@ -603,5 +613,5 @@ class NodeInfo:
                 f"  Is terminal node: {self.is_terminal}")
     
     def __repr__(self):
+        """Return a string representation that can be used to recreate the NodeInfo object."""
         return f"NodeInfo(domain='{self.domain}', gtdb_id='{self.gtdb_id}', redvals_id='{self.redvals_id}', red_value={self.red_value}, is_terminal={self.is_terminal}, red_distance={self.red_distance})"
-

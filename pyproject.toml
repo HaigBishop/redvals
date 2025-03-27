@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "redvals"
+version = "0.1.0"
+description = "Tool for obtaining and accessing RED values from GTDB phylogenetic trees."
+readme = "README.md"
+authors = [
+  { name="Haig Bishop", email="haigvbishop@gmail.com" },
+]
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Operating System :: OS Independent",
+]
+keywords = ["bioinformatics", "phylogenetics", "GTDB", "phylogenetic tree"]
+dependencies = [
+    "biopython",
+    "pandas",
+    "tqdm",
+]
+
+# Add author, license, URLs, keywords based on your input
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+# Add project URLs if provided
+[project.urls]
+Repository = "https://github.com/HaigBishop/redvals.git"

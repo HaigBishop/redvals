@@ -1,5 +1,5 @@
 # redvals
-Tool for obtaining and accessing RED values from GTDB phylogenetic trees.
+Tool for obtaining and accessing Relative Evolutionary Divergence (RED) values from GTDB phylogenetic trees.
 
 
 ## Set Up
@@ -128,4 +128,19 @@ print("RED value of 'bac00000520':", node_520.red_value)
 ## Reference Diagram:
 ![Phylogenetic tree visualization](res/tree.png)
 
+
+## How to Contribute
+Contributions are very welcome.
+
+1. **Fork the repository** and clone it locally
+2. **Create a new branch** for your feature or bug fix
+3. **Make your changes** and write tests if applicable
+4. **Run existing tests** to ensure nothing was broken
+5. **Submit a pull request** with a clear description of your changes
+
+
+## To Do
+ - add good docstrings to RedTree
+ - add comprehensive tests to all_tests.py
+ - add to PyPI
 
