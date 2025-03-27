@@ -22,49 +22,56 @@ conda install -c conda-forge tqdm
 
 
 ## Usage
-#### Import redvals
+#### Import redvals.RedTree
+The `RedTree` object represents the bacterial and archaeal phylogenetic trees.
 ```python
 from redvals import RedTree
 ```
 
-#### Load Undecorated Trees
+#### Load Undecorated Trees (Init Method 1)
+This loads original Newick trees with no RED values. Also assigns 'redvals IDs' to all nodes.
 ```python
 red_trees = RedTree("trees/bac120_r220.tree", "trees/ar53_r220.tree")
 ```
 
-#### Decorate Trees from TSVs
+#### Decorate Trees from TSVs (takes 30-90 minutes)
+This adds RED values and RED distances to every node in both trees.
 ```python
 red_trees.decorate_from_tsv("red_values/gtdbtk_r220_bac120.tsv", "red_values/gtdbtk_r220_ar53.tsv")
 ```
 
 #### Write Decorated Trees
+This saves the trees with the RED values and distances as .pkl files, avoiding repetition of the time-consuming decoration process.
 ```python
 red_trees.write_decorated_trees("decorated_trees/bac120_r220_decorated.pkl", "decorated_trees/ar53_r220_decorated.pkl")
 ```
 
-#### Load Decorated Trees
+#### Load Decorated Trees (Init Method 2)
+Load the already decorated trees originating from write_decorated_trees.
 ```python
 red_trees = RedTree("decorated_trees/bac120_r220_decorated.pkl", "decorated_trees/ar53_r220_decorated.pkl")
 ```
 
 #### Convert Node IDs
+The IDs found in the orginal GTDB `.tree` files are maintained (called `gtdb_ids`). But for most internal nodes there are no IDs. Therefore new IDs are assigned to *all* nodes called `redvals_ids`. You can use either type at any time, but if you wish to convert between them you can use the code here.
 ```python
 bacterial_redvals_id = red_trees.get_redvals_id("GB_GCA_002687935.1")
 gtdb_id = red_trees.get_gtdb_id("bac00000001")
 ```
 
 #### Access Node Info
+Many attributes of nodes can easily be accessed using get_node_info.
 ```python
 node_info = red_trees.get_node_info("bac00000001")
-print(f"RED value: {node_info.red_value}, Domain: {node_info.domain}")
+print(f"GTDB ID: {node_info.gtdb_id}, redvals ID: {node_info.redvals_id}, Domain: {node_info.domain}")
+print(f"RED value: {node_info.red_value}, RED distance: {node_info.red_distance}, Is terminal?: {node_info.is_terminal}")
 ```
 
 #### Compute RED Distances
+For any two nodes dist_between_nodes gives the RED distance between them and the `redvals_ids` of their MRCA. This works for two leaf nodes, two internal nodes, or an internal and a leaf node.
 ```python
 red_distance, mrca_node_id = red_trees.dist_between_nodes("bac00000001", "RS_GCF_001186155.3")
 ```
-
-
 
 
 ## Files

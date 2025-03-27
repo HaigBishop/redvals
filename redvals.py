@@ -46,12 +46,21 @@ ARC_DECORATED_TREE_PATH = "decorated_trees/ar53_r220_decorated.pkl"
 
 
 class RedTree:
+    """
+    A class representing both the bacterial and archaeal GTDB phylogenetic trees, with RED values.
+
+    Decoration of the trees is done using the decorate_from_tsv() method. In this process, every node in both trees is assigned the following attributes:
+      RED Value (red_value):
+        - For any nodeX, nodeX.red_value is the RED value of the nodeX, directly derived from the TSV file.
+      RED Distance (red_distance):
+        - For any nodeX, nodeX.red_distance is the RED distance between any two descendants of nodeX for which their MRCA is nodeX, calculated as 2 * (1 - nodeX.red_value).
+    """
     def __init__(self, bac_tree_path=None, arc_tree_path=None, verbose=False):
         """
         Initialise the RedTree object.
         - bac_tree_path and arc_tree_path can be either:
           - paths to Newick format .tree files
-          - paths to .pkl files containing decorated Bio.Phylo.Newick.Tree objects derived from RedTree.write_trees()
+          - paths to .pkl files containing decorated Bio.Phylo.Newick.Tree objects derived from RedTree.write_decorated_trees()
         """
         # Set the verbose attribute
         self.verbose = verbose
@@ -406,9 +415,6 @@ class RedTree:
         Decorate the trees (with RED values) by calculating RED values.
         """
         raise NotImplementedError("This function is not yet implemented")
-        # # Check if the trees are decorated
-        # if self.is_decorated():
-        #     raise ValueError("The trees are already decorated")
 
     def get_mrca_node_from_ids(self, node_1_id, node_2_id):
         """
@@ -461,10 +467,8 @@ class RedTree:
         node_2 = self.get_node(node_2_id)
         # Get the MRCA
         mrca_node = self.get_mrca_node(node_1, node_2)
-        # Get the RED distance (between ancestor nodes)
-        mrca_red_distance = mrca_node.red_distance
-        # Subtract the RED values of the two nodes (incase they are internal nodes)
-        red_distance_between_nodes = mrca_red_distance - node_1.red_distance - node_2.red_distance
+        # Calculate the RED distance
+        red_distance_between_nodes = (node_1.red_value - mrca_node.red_value) + (node_2.red_value - mrca_node.red_value)
         return red_distance_between_nodes, mrca_node.redvals_id
     
     def write_decorated_trees(self, bac_tree_path=None, arc_tree_path=None):
@@ -577,10 +581,11 @@ class NodeInfo:
         self.redvals_id = redvals_id    # e.g. "bac00001342"
         self.red_value = red_value      # e.g. 0.95
         self.is_terminal = is_terminal  # True or False
-        self.red_distance = (1 - red_value) * 2 if red_distance is None else red_distance
+        self.red_distance = None if red_value is None else (1 - red_value) * 2 if red_distance is None else red_distance
 
     def __str__(self):
         return f"NodeInfo(domain={self.domain}, gtdb_id={self.gtdb_id}, redvals_id={self.redvals_id}, red_value={self.red_value}, is_terminal={self.is_terminal}, red_distance={self.red_distance})"
     
     def __repr__(self):
         return self.__str__()
+
