@@ -241,6 +241,69 @@ class RedTree:
             
         return self.get_node_dict[node_id]
     
+    def get_nodes(self, domain='both', node_type='both'):
+        """
+        Return all nodes in the tree (with optional filters).
+
+        Args:
+            domain (str): Can be 'both', 'bac' or 'arc'.
+            node_type (str): Can be 'both', 'terminal'/'leaf' or 'nonterminal'/'internal'.
+
+        Returns:
+            list: A list of nodes.
+        """
+        # Check for valid args
+        if domain not in ['both', 'bac', 'arc']:
+            raise ValueError(f"Invalid domain: '{domain}'")
+        if node_type not in ['both', 'terminal', 'nonterminal', 'leaf', 'internal']:
+            raise ValueError(f"Invalid node type: '{node_type}'")
+
+        # Get the correct tree
+        node_list = []
+        
+        # Handle terminal/leaf nodes
+        if node_type in ['both', 'terminal', 'leaf']:
+            if domain in ['both', 'bac']:
+                node_list.extend(self.bac_tree.get_terminals())
+            if domain in ['both', 'arc']:
+                node_list.extend(self.arc_tree.get_terminals())
+                
+        # Handle nonterminal/internal nodes
+        if node_type in ['both', 'nonterminal', 'internal']:
+            if domain in ['both', 'bac']:
+                node_list.extend(self.bac_tree.get_nonterminals())
+            if domain in ['both', 'arc']:
+                node_list.extend(self.arc_tree.get_nonterminals())
+
+        # Return the list of nodes
+        return node_list
+    
+    def get_node_ids(self, id_type='redvals', domain='both', node_type='both', keep_none=False):
+        """
+        Return all node IDs in the tree (with optional filters).
+
+        Args:
+            id_type (str): Can be 'redvals' or 'gtdb'.
+            domain (str): Can be 'both', 'bac' or 'arc'.
+            node_type (str): Can be 'both', 'terminal'/'leaf' or 'nonterminal'/'internal'.
+            keep_none (bool): If True, keep None IDs.
+
+        Returns:
+            list: A list of node IDs.
+        """
+        # Get the nodes
+        nodes = self.get_nodes(domain, node_type)
+        # Get the node IDs
+        if id_type == 'redvals':
+            return [node.redvals_id for node in nodes]
+        elif id_type == 'gtdb':
+            if keep_none:
+                return [node.name for node in nodes]
+            else:
+                return [node.name for node in nodes if node.name not in ['', 'None', None]]
+        else:
+            raise ValueError(f"Invalid ID type: '{id_type}'")
+    
     def get_gtdb_id(self, redvals_id):
         """
         Given a redvals ID, return the GTDB ID.

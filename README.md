@@ -56,6 +56,21 @@ bacterial_redvals_id = red_trees.get_redvals_id("GB_GCA_002687935.1")
 gtdb_id = red_trees.get_gtdb_id("bac00000001")
 ```
 
+### Get All Node IDs
+You can retrieve all node IDs with optional filtering.
+```python
+all_gtdb_ids = red_trees.get_node_ids(domain='both', node_type='both', id_type='gtdb') # (many internal nodes do not have GTDB IDs)
+internal_archaeal_redvals_ids = red_trees.get_node_ids(domain='arc', node_type='internal', id_type='redvals')
+```
+
+### Get All Nodes
+You can retrieve all nodes with optional filtering.
+```python
+all_leaf_nodes = red_trees.get_nodes(domain='both', node_type='leaf')
+all_bacterial_nodes = red_trees.get_nodes(domain='bac', node_type='both')
+all_bacterial_leaf_nodes = red_trees.get_nodes(domain='bac', node_type='leaf')
+```
+
 ### Access Node Info
 Many attributes of nodes can easily be accessed using get_node_info.
 ```python
