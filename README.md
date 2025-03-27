@@ -125,9 +125,6 @@ print("RED value of 'bac00000520':", node_520.red_value)
 ```
 
 
-## Reference Diagram:
-![Phylogenetic tree visualization](res/tree.png)
-
 
 ## How to Contribute
 Contributions are very welcome.
