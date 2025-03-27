@@ -12,9 +12,8 @@ cd redvals
 ```
 2. Install dependencies (biopython, pandas and tqdm)
 ```
-conda install -c conda-forge biopython
-conda install -c conda-forge pandas
-conda install -c conda-forge tqdm
+conda create -n redvals_env python=3.12 biopython pandas tqdm
+conda activate redvals_env
 ```
 3. Use package
  - See usage below
@@ -103,7 +102,7 @@ There is one row for each node (terminal and nonterminal). The second column hol
 
 ### Decorated Tree Files
 #### ./decorated_trees/bac120_r220_decorated.pkl and ./decorated_trees/ar53_r220_decorated.pkl
-These files are Python pickle files, each containing a Bio.Phylo.Newick.Tree object. Loading these objects (see below) results in the same object as loading the .tree files (as above), but the difference is that they are decorated with RED values, and [TODO].
+These files are Python pickle files, each containing a Bio.Phylo.Newick.Tree object. Loading these objects (see below) results in the same object as loading the .tree files (as above), but the difference is that they are decorated with RED values, and RED distances.
 
 Example usage:
 ```
@@ -113,19 +112,13 @@ from Bio import Phylo
 with open("./out/bac120_r220_decorated.pkl", "rb") as f:
     decorated_bac120_tree = pickle.load(f)
 
-# Access some RED values using the tree
-[TODO]
+# Access a RED value using the tree
+node_520 = decorated_bac120_tree.get_node("bac00000520")
+print("RED value of 'bac00000520':", node_520.red_value)
 ```
 
 
 ### Reference Diagram:
 ![Phylogenetic tree visualization](res/tree.png)
-
-
-## TO DO
- - use verbose attribute
- - calculate RED values
-
-
 
 

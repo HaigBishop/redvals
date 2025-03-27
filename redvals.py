@@ -79,7 +79,8 @@ class RedTree:
         if bac_tree_path.endswith(".tree"):
             self.bac_tree = Phylo.read(bac_tree_path, "newick")
             self.arc_tree = Phylo.read(arc_tree_path, "newick")
-            print(f"\nLoaded Newick format trees from {bac_tree_path} and {arc_tree_path}")
+            if self.verbose:
+                print(f"\nLoaded Newick format trees from {bac_tree_path} and {arc_tree_path}")
 
             # The trees are not decorated
             self.bac_tree.is_decorated = False
@@ -89,14 +90,16 @@ class RedTree:
             # Make a dictionaries to do with node IDs
             self.make_node_id_dicts()
             
-            print("Successfully initialised RedTree object using Newick format trees...")
-            print("Note: The the nodes have IDs, but they are not yet decorated with RED values.\n")
+            if self.verbose:
+                print("Successfully initialised RedTree object using Newick format trees...")
+                print("Note: The the nodes have IDs, but they are not yet decorated with RED values.\n")
 
         # If the trees are .pkl files
         elif bac_tree_path.endswith(".pkl"):
             self.bac_tree = pickle.load(open(bac_tree_path, "rb"))
             self.arc_tree = pickle.load(open(arc_tree_path, "rb"))
-            print(f"\nLoaded decorated .pkl files from {bac_tree_path} and {arc_tree_path}")
+            if self.verbose:
+                print(f"\nLoaded decorated .pkl files from {bac_tree_path} and {arc_tree_path}")
             # Check if the trees are valid Bio.Phylo.Newick.Tree objects
             if not isinstance(self.bac_tree, Phylo.Newick.Tree) or not isinstance(self.arc_tree, Phylo.Newick.Tree):
                 raise ValueError("The trees must be valid Bio.Phylo.Newick.Tree objects")
@@ -110,11 +113,13 @@ class RedTree:
                 raise ValueError("The provided Bio.Phylo.Newick.Tree .pkl files are not decorated")
             # Make a dictionaries to do with node IDs
             self.make_node_id_dicts()
-            print("Successfully initialised RedTree object using decorated .pkl files...")
-            print("The the nodes are decorated with IDs and RED values.")
+            if self.verbose:
+                print("Successfully initialised RedTree object using decorated .pkl files...")
+                print("The the nodes are decorated with IDs and RED values.")
             # Make a dictionary for NodeInfo objects
             self.make_node_info_dict()
-            print("Successfully created NodeInfo mappings for the IDs of all nodes.\n")
+            if self.verbose:
+                print("Successfully created NodeInfo mappings for the IDs of all nodes.\n")
 
     def assign_redvals_ids(self):
         """
@@ -141,7 +146,9 @@ class RedTree:
         
         # Assign IDs to archaeal tree nodes
         arc_count = assign_ids(self.arc_tree, "arc")
-        print(f"Assigned IDs to all {bac_count} bacterial and all {arc_count} archaeal nodes")
+        
+        if self.verbose:
+            print(f"Assigned IDs to all {bac_count} bacterial and all {arc_count} archaeal nodes")
 
         return bac_count, arc_count
 
@@ -181,7 +188,8 @@ class RedTree:
                 self.get_gtdb_id_dict[node.redvals_id] = node.name
                 self.get_redvals_id_dict[node.name] = node.redvals_id
         
-        print(f"Created mappings for the IDs of {len(self.get_node_dict)} nodes")
+        if self.verbose:
+            print(f"Created mappings for the IDs of {len(self.get_node_dict)} nodes")
 
     def make_node_info_dict(self):
         """
@@ -218,7 +226,8 @@ class RedTree:
         # Add all bacterial internal nodes
         add_to_node_info_dict(self.bac_tree.get_nonterminals(), 'bac', False)
         
-        print(f"Created NodeInfo mappings for the IDs of {len(self.get_node_dict)} nodes")
+        if self.verbose:
+            print(f"Created NodeInfo mappings for the IDs of {len(self.get_node_dict)} nodes")
 
     def get_node(self, node_id):
         """
@@ -243,7 +252,7 @@ class RedTree:
         
         gtdb_id = self.get_gtdb_id_dict[redvals_id]
 
-        if gtdb_id is None:
+        if gtdb_id is None and self.verbose:
             print(f"Redvals ID '{redvals_id}' does not have a corresponding GTDB ID. Likely an unlablled internal node.")
             
         return gtdb_id
@@ -446,7 +455,7 @@ class RedTree:
         # Get the MRCA
         mrca_node = tree.common_ancestor(node_1, node_2)
         # Check that the MRCA is not None
-        if mrca_node is None:
+        if mrca_node is None and self.verbose:
             print(f"MRCA for nodes '{node_1.redvals_id}' and '{node_2.redvals_id}' is not found. Returning None.")
         return mrca_node
 
@@ -496,7 +505,8 @@ class RedTree:
         # Write the trees to file (pickle format)
         pickle.dump(self.bac_tree, open(bac_tree_path, "wb"))
         pickle.dump(self.arc_tree, open(arc_tree_path, "wb"))
-        print(f"Wrote decorated trees (as .pkl) to {bac_tree_path} and {arc_tree_path}")
+        if self.verbose:
+            print(f"Wrote decorated trees (as .pkl) to {bac_tree_path} and {arc_tree_path}")
     
     def get_node_domain(self, node_id):
         """
@@ -584,8 +594,14 @@ class NodeInfo:
         self.red_distance = None if red_value is None else (1 - red_value) * 2 if red_distance is None else red_distance
 
     def __str__(self):
-        return f"NodeInfo(domain={self.domain}, gtdb_id={self.gtdb_id}, redvals_id={self.redvals_id}, red_value={self.red_value}, is_terminal={self.is_terminal}, red_distance={self.red_distance})"
+        return (f"NodeInfo:\n"
+                f"  redvals ID: {self.redvals_id}\n"
+                f"  GTDB ID: {self.gtdb_id}\n"
+                f"  Domain: {self.domain}\n"
+                f"  RED value: {self.red_value}\n"
+                f"  RED distance: {self.red_distance}\n"
+                f"  Is terminal node: {self.is_terminal}")
     
     def __repr__(self):
-        return self.__str__()
+        return f"NodeInfo(domain='{self.domain}', gtdb_id='{self.gtdb_id}', redvals_id='{self.redvals_id}', red_value={self.red_value}, is_terminal={self.is_terminal}, red_distance={self.red_distance})"
 
