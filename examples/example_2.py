@@ -1,6 +1,10 @@
 """
 Example 2 - Loading Decorated Trees
 
+Copyright (c) 2025 Haig Bishop
+
+MIT License (see LICENSE file for details)
+
 This example demonstrates working with previously decorated trees:
 1. Load the decorated tree files (.pkl) into a RedTree object
 2. Convert between GTDB and redvals node IDs

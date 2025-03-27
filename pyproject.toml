@@ -11,11 +11,13 @@ authors = [
   { name="Haig Bishop", email="haigvbishop@gmail.com" },
 ]
 requires-python = ">=3.12"
+license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
 ]
 keywords = ["bioinformatics", "phylogenetics", "GTDB", "phylogenetic tree"]
 dependencies = [

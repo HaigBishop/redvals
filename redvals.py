@@ -1,5 +1,9 @@
 """redvals: A tool for obtaining RED (Relative Evolutionary Divergence) values from GTDB phylogenetic trees
 
+Copyright (c) 2025 Haig Bishop
+
+MIT License (see LICENSE file for details)
+
 This module provides functionality for handling phylogenetic trees from the Genome Taxonomy Database (GTDB) 
 and calculating Relative Evolutionary Divergence (RED) values. It supports both bacterial and archaeal trees
 in a single RedTree object.

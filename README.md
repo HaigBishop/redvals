@@ -156,3 +156,13 @@ Contributions are very welcome.
  - add comprehensive tests to all_tests.py
  - add to PyPI
 
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Data Licensing
+
+This tool processes data from the Genome Taxonomy Database (GTDB). The GTDB data is subject to its own licensing terms:
+- GTDB data (including phylogenetic trees and taxonomy) is available under a [CC BY-SA 4.0 license](https://creativecommons.org/licenses/by-sa/4.0/)
+

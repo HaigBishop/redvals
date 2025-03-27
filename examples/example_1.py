@@ -1,6 +1,10 @@
 """
 Example 1 - Decorating Trees from Scratch
 
+Copyright (c) 2025 Haig Bishop
+
+MIT License (see LICENSE file for details)
+
 This example demonstrates decorating a tree with RED values from TSV files:
 1. Load the original Newick tree files (.tree) into a RedTree object
 2. Decorate the trees with RED values from TSV files

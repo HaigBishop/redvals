@@ -1,3 +1,11 @@
+"""
+test_all: A script for testing the redvals module
+
+Copyright (c) 2025 Haig Bishop
+
+MIT License (see LICENSE file for details)
+"""
+
 import pytest
 import os
 import sys
