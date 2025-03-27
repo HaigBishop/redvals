@@ -1,7 +1,5 @@
 # redvals
-Tool for obtaining RED values from GTDB phylogenetic trees
-
-
+Tool for obtaining and accessing RED values from GTDB phylogenetic trees.
 
 
 ## Set Up
@@ -18,9 +16,6 @@ conda activate redvals_env
 3. Use package
  - See usage below
  - Or see in depth examples in `example_1.py` and `example_2.py`
-
-
-
 
 
 ## Usage
@@ -76,8 +71,6 @@ red_distance, mrca_node_id = red_trees.dist_between_nodes("bac00000001", "RS_GCF
 ```
 
 
-
-
 ## Files
 
 ### Original Newick Tree Files
@@ -130,8 +123,6 @@ with open("./out/bac120_r220_decorated.pkl", "rb") as f:
 node_520 = decorated_bac120_tree.get_node("bac00000520")
 print("RED value of 'bac00000520':", node_520.red_value)
 ```
-
-
 
 
 ## Reference Diagram:
