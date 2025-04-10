@@ -85,6 +85,25 @@ For any two nodes dist_between_nodes gives the RED distance between them and the
 red_distance, mrca_node_id = red_trees.dist_between_nodes("bac00000001", "RS_GCF_001186155.3")
 ```
 
+### Map Taxon Names to Nodes
+Given a taxon name (e.g. g__Escherichia) we can use get_distance_in_taxon(taxon_name) to get the RED distance between any pair of leaf nodes who's MRCA is the node representing that taxon. Before using get_distance_in_taxon(taxon_name) however, map_nodes_to_taxa(seqs_fasta) must be run, where seqs_fasta is a GTDB database FASTA file such as ssu_all_r220.fna.
+```python
+# Running map_taxa_to_nodes may take 20-40 minutes
+red_trees.map_taxa_to_nodes("D:/16S_databases/ssu_all_r220.fna", 
+    save_result_path="./taxon_mapping/taxon_to_node_mapping.pkl")
+# Then these are fast
+red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
+s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
+```
+
+### Load Pre-Computed Taxon Name Mappings
+If you previously ran map_taxa_to_nodes and saved the result, you can use load_taxa_to_node_mapping to quicky load taxon -> node mappings
+```python
+red_trees.load_taxa_to_node_mapping("./taxon_mapping/taxon_to_node_mapping.pkl")
+red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
+s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
+```
+
 
 ## Files
 
@@ -138,6 +157,12 @@ with open("./out/bac120_r220_decorated.pkl", "rb") as f:
 node_520 = decorated_bac120_tree.get_node("bac00000520")
 print("RED value of 'bac00000520':", node_520.red_value)
 ```
+
+### Taxon to Node Mapping
+ - `./taxon_mapping/taxon_to_node_mapping.pkl`
+
+This files is a Python pickle file containing a dictionary which simply maps `taxon_name` to `redvals_id` where `redvals_id` is the ID of the node representing that clade. For example, "g__Escherichia" -> "bac00002631" or "p__Nitrospirota" -> "bac00079003". This is used for get_node_from_taxon_name() and get_distance_in_taxon().
+
 
 
 

@@ -27,6 +27,8 @@ from Bio import Phylo
 import pickle
 from tqdm import tqdm
 import pandas as pd
+from collections import defaultdict
+import random
 
 
 # DEFAULT FILE PATHS ========================================================
@@ -124,6 +126,9 @@ class RedTree:
             self.make_node_info_dict()
             if self.verbose:
                 print("Successfully created NodeInfo mappings for the IDs of all nodes.\n")
+        
+        # Initialise node_from_taxon_name_dict as None
+        self.node_from_taxon_name_dict = None
 
     def assign_redvals_ids(self):
         """
@@ -647,6 +652,319 @@ class RedTree:
         if node_id not in self.get_node_info_dict:
             raise KeyError(f"Node ID '{node_id}' not found in the tree")
         return self.get_node_info_dict[node_id].red_distance
+
+    def map_taxa_to_nodes(self, seqs_fasta_path, save_result_path=None):
+        """
+        Assigns taxon names to nodes and creates a mapping from taxon names to nodes.
+
+        Reads a FASTA file where headers contain GTDB IDs and taxonomic lineages.
+        It assigns a 'taxon_names' attribute (a list of strings, e.g., ['g__Escherichia', 'f__Enterobacteriaceae']) 
+        to the node representing the Most Recent Common Ancestor (MRCA) of all leaves belonging 
+        to that taxon found in the FASTA.
+        It also populates the `self.node_from_taxon_name_dict` dictionary, mapping
+        taxon names directly to their corresponding MRCA node objects.
+        
+        Args:
+            seqs_fasta_path (str): Path to the FASTA file with sequence information and taxonomy.
+                                   Headers should be formatted like: >{GTDB_ID}~{lineage} [...]
+            save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+
+        Example seqs_fasta_path (e.g. "D:/16S_databases/ssu_all_r220.fna"):
+            >RS_GCF_018344175.1~NZ_JAAMUS010000074.1 d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli [location=16..1459] [ssu_len=1444] [contig_len=1463]
+            ACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAACTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAACGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATC
+            >RS_GCF_001246675.1~NZ_CXGB01000177.1 d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli [location=5822..7324] [ssu_len=1503] [contig_len=7713]
+            ATTGAAGAGTTTGATCATGGCTCAGATTGAACGCTGGCGGCAGGCCTAACACATGCAAGTCGAACGGTAACAGGAAACAGCTTGCTGTTTCGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGG
+            >RS_GCF_000335255.2~NZ_AOEB01000154.1 d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli [location=2..1012] [ssu_len=1011] [contig_len=27380]
+            TTGAAGAGTTTGATCATGGCTCAGATTGAACGCTGGCGGCAGGCCTAACACATGCAAGTCGAACGGTAACAGGAAGAAGCTTGCTTCTTTGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGA
+        (These files are available on the GTDB website - e.g. https://gtdb.ecogenomic.org/downloads  ->  /public/gtdb/data/releases/release220/220.0/genomic_files_all)
+
+        This method is long and complex, due to optimisations which drastically speed up calls to common_ancestor.
+        """
+        # Check if the trees are decorated
+        if not self.is_decorated():
+            raise ValueError("The trees must be decorated before mapping taxa to nodes.")
+        
+        # Check if the FASTA file exists
+        if not os.path.exists(seqs_fasta_path):
+            raise FileNotFoundError(f"Sequence FASTA file not found at {seqs_fasta_path}")
+
+        def parse_fasta_line(line):
+            if not line.startswith('>'):
+                return None
+            # Get the header (e.g. "RS_GCF_000335255.2~NZ_AOEB01000154.1 d__Bacteria;p__Pseudomonadota;c__Gammaproteoba...")
+            header = line[1:].strip()
+            # Split the header into GTDB ID and lineage part
+            parts = header.split('~', 1)
+            if len(parts) != 2:
+                print(f"Warning: Skipping malformed header: {line.strip()}")
+                return None
+            # Get the GTDB ID (e.g. RS_GCF_905219285.2)
+            gtdb_id = parts[0]
+            # Extract the lineage_part (after the first space, and before the first ' [')
+            # e.g. "d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enter..."
+            lineage_full_string = parts[1]
+            lineage_part = lineage_full_string.split(' ', 1)[1].split(' [', 1)[0]
+            return gtdb_id, lineage_part
+        
+        # Get all leaf node GTDB IDs from the decorated trees
+        all_gtdb_leaf_ids = self.get_node_ids(id_type="gtdb", node_type="leaf")
+        all_gtdb_leaf_ids = set(all_gtdb_leaf_ids)
+        
+        # Create the dictionary mapping GTDB IDs to taxonomy lists
+        # e.g. "RS_GCF_018344175.1" -> ["d__Bacteria", "p__Pseudomonadota", "c__Gammaproteobacteria", "o__Enterobacterales", "f__Enterobacteriaceae", "g__Escherichia", "s__Escherichia coli"]
+        gtdb_id_to_taxa = {}
+        all_taxa_set = set()
+        with open(seqs_fasta_path, 'r') as f:
+            for line in f:
+                parsed_result = parse_fasta_line(line)
+                if parsed_result:
+                    gtdb_id, lineage_part = parsed_result
+                    # Check if the GTDB ID is in the set of all leaf node GTDB IDs
+                    if gtdb_id in all_gtdb_leaf_ids:
+                        taxa_list = lineage_part.split(';')
+                        if gtdb_id in gtdb_id_to_taxa and taxa_list != gtdb_id_to_taxa[gtdb_id]:
+                            print(f"Warning: Duplicate GTDB ID '{gtdb_id}' found in the FASTA file with different taxonomies.")
+                            print(f"  First taxonomy: {gtdb_id_to_taxa[gtdb_id]}")
+                            print(f"  Second taxonomy: {taxa_list}")
+                        gtdb_id_to_taxa[gtdb_id] = taxa_list
+                        all_taxa_set.update(taxa_list)
+        if self.verbose:
+            print(f"Successfully read the taxonomies of {len(gtdb_id_to_taxa)} sequences from {seqs_fasta_path}")
+        
+        # Create a dictionary mapping taxon names to lists of GTDB IDs
+        # e.g. "g__Escherichia" -> ["RS_GCF_018344175.1", "RS_GCF_001246675.1", ...]
+        taxon_to_gtdb_ids = defaultdict(list)
+
+        if self.verbose:
+            print("Grouping leaf nodes by taxon...")
+        # Iterate through the parsed taxonomies
+        for gtdb_id, taxa_list in tqdm(gtdb_id_to_taxa.items(), desc="Grouping taxa"):
+            # For each taxon name in the lineage of the current GTDB ID
+            for taxon_name in taxa_list:
+                # Append the GTDB ID to the list for that taxon name
+                taxon_to_gtdb_ids[taxon_name].append(gtdb_id)
+        
+        if self.verbose:
+             print(f"Grouped leaf nodes into {len(taxon_to_gtdb_ids)} unique taxa.")
+
+        # Now we have:
+        # taxon_to_gtdb_ids: 
+        # "g__Escherichia" -> ["RS_GCF_018344175.1", "RS_GCF_001246675.1", ...]
+        # gtdb_id_to_taxa:
+        # "RS_GCF_018344175.1" -> ["d__Bacteria", "p__Pseudomonadota", "c__Gammaproteobacteria", "o__Enterobacterales", "f__Enterobacteriaceae", "g__Escherichia", "s__Escherichia coli"]
+
+        # Construct reduced_taxon_to_gtdb_ids, where the lists of IDs are subsets of the original lists in taxon_to_gtdb_ids
+        # More specifically, for each taxon name, we identify the highest rank at which the sequences do not all have the same taxonomic label, then select a single sequence from each label
+        reduced_taxon_to_gtdb_ids = {}
+
+        # Construct reduced_taxon_to_gtdb_ids
+        if self.verbose:
+            print("Selecting representative leaf nodes for each taxon...")
+        reduced_taxon_to_gtdb_ids = {}
+        # Define rank order and mapping
+        ranks = ['d', 'p', 'c', 'o', 'f', 'g', 's']
+        rank_map = {rank: i for i, rank in enumerate(ranks)}
+
+        # Iterate through each taxon and its associated GTDB IDs
+        for taxon_name, gtdb_ids_list in tqdm(taxon_to_gtdb_ids.items(), desc="Reducing taxa lists"):
+            # Handle taxa with less than 3 members - MRCA is trivial or undefined in this context
+            if len(gtdb_ids_list) <= 2:
+                reduced_taxon_to_gtdb_ids[taxon_name] = gtdb_ids_list # Keep original list (0, 1, or 2 elements)
+                continue
+
+            # Try to determine the rank of the current taxon_name
+            current_rank_prefix = taxon_name[0]
+            if current_rank_prefix not in rank_map:
+                if self.verbose:
+                    print(f"Warning: Could not determine rank for taxon '{taxon_name}'. Using first/last IDs as fallback.")
+                reduced_taxon_to_gtdb_ids[taxon_name] = [gtdb_ids_list[0], gtdb_ids_list[-1]]
+                continue
+                
+            current_rank_index = rank_map[current_rank_prefix]
+
+            # Species level taxa have no lower ranks to check diversity against
+            if current_rank_index == rank_map['s']:
+                 reduced_taxon_to_gtdb_ids[taxon_name] = [gtdb_ids_list[0], gtdb_ids_list[-1]]
+                 continue
+
+            representatives_found = False
+            # Check ranks below the current taxon's rank for diversity
+            for check_rank_index in range(current_rank_index + 1, len(ranks)):
+                groups_at_rank = defaultdict(list)
+                unknown_rank_label = f"{ranks[check_rank_index]}__unknown_or_missing"
+
+                # Group IDs based on their label at the check_rank_index
+                for gtdb_id in gtdb_ids_list:
+                    taxa_list = gtdb_id_to_taxa.get(gtdb_id) # Get the full lineage for this ID
+                    if taxa_list and len(taxa_list) > check_rank_index:
+                         # Check if the label at this rank index has the correct prefix
+                        label_at_check_rank = taxa_list[check_rank_index]
+                        if label_at_check_rank.startswith(ranks[check_rank_index] + '__'):
+                             groups_at_rank[label_at_check_rank].append(gtdb_id)
+                        else:
+                             # Lineage might be inconsistent or malformed at this rank
+                             groups_at_rank[unknown_rank_label].append(gtdb_id)
+                    else:
+                        # Lineage doesn't extend to this rank
+                        groups_at_rank[unknown_rank_label].append(gtdb_id)
+                
+                # If we found more than one group at this rank, diversity exists
+                if len(groups_at_rank) > 1:
+                    # Select the first ID from each group as a representative
+                    reduced_list = [ids[0] for ids in groups_at_rank.values() if ids] # Ensure list is not empty
+                    # Need at least two representatives to find an MRCA
+                    if len(reduced_list) >= 2:
+                        reduced_taxon_to_gtdb_ids[taxon_name] = reduced_list
+                        representatives_found = True
+                        break # Stop checking lower ranks
+                    else: 
+                        # This case (finding diversity but ending up with < 2 representatives) 
+                        # is unlikely but possible if groups had empty lists (shouldn't happen with current logic)
+                        # or if only one group had valid members plus an 'unknown' group.
+                        # Continue to potentially find better diversity lower down.
+                        pass
+
+            # Fallback: If no diversity was found at any lower rank
+            if not representatives_found:
+                # Use the first and last ID from the original list
+                reduced_taxon_to_gtdb_ids[taxon_name] = [gtdb_ids_list[0], gtdb_ids_list[-1]]
+
+        if self.verbose:
+            print(f"Reduced lists of representative leaf nodes.")
+
+        # Now we have:
+        # reduced_taxon_to_gtdb_ids: 
+        # "g__Escherichia" -> ["RS_GCF_018344175.1", "RS_GCF_001246675.1", ...]
+
+        # Initialize the dictionary mapping taxon names to MRCA nodes
+        self.node_from_taxon_name_dict = {}
+        
+        # Shuffle the order of reduced_taxon_to_gtdb_ids so that we can estimate time of completion better
+        taxon_items = list(reduced_taxon_to_gtdb_ids.items())
+        random.shuffle(taxon_items)
+
+        # Iterate through shuffled reduced_taxon_to_gtdb_ids, find MRCA for each using the selected representatives,
+        # and populate self.node_from_taxon_name_dict and the '.taxon_names' attribute on the MRCA nodes
+        print("Finding MRCA nodes for each taxon...")
+        nodes_with_taxa_assigned = 0
+        failed_taxa_count = 0
+
+        # Iterate through the shuffled taxa and their representative GTDB IDs
+        for taxon_name, representative_gtdb_ids in tqdm(taxon_items, desc="Mapping taxa to MRCA nodes"):
+            # Skip if there are fewer than 1 representative IDs, as MRCA is trivial or meaningless
+            if len(representative_gtdb_ids) < 1:
+                print(f"Warning: Skipping MRCA node for taxon '{taxon_name}': Needs at least 1 representative leaf nodes to find a meaningful MRCA.")
+                failed_taxa_count += 1
+                continue
+
+            try:
+                # Get the node objects for the representative GTDB IDs
+                representative_nodes = [self.get_node(gtdb_id) for gtdb_id in representative_gtdb_ids]
+                
+                # Determine the correct tree (bacterial or archaeal)
+                the_domain = representative_nodes[0].redvals_id[:3]
+                tree = self.bac_tree if the_domain == "bac" else self.arc_tree
+
+                # Find the MRCA of the representative nodes
+                mrca_node = tree.common_ancestor(*representative_nodes) # Use * to unpack the list
+
+                if mrca_node:
+                    # Add the mapping from taxon name to the MRCA node
+                    self.node_from_taxon_name_dict[taxon_name] = mrca_node
+                    nodes_with_taxa_assigned += 1
+
+                    # Add the taxon name to the MRCA node's taxon_names attribute (initialize if needed)
+                    if not hasattr(mrca_node, 'taxon_names'):
+                        mrca_node.taxon_names = set()
+                    mrca_node.taxon_names.add(taxon_name)
+                else:
+                    # This case should be rare if input data is correct
+                    print(f"Warning: Could not find MRCA for taxon '{taxon_name}' with representatives: {representative_gtdb_ids}. Skipping.")
+                    failed_taxa_count += 1
+
+            except KeyError as e:
+                print(f"Warning: Skipping taxon '{taxon_name}'. Could not find node for GTDB ID: {e}. Ensure all IDs in the FASTA exist in the tree.")
+                failed_taxa_count += 1
+            except Exception as e:
+                print(f"Warning: An unexpected error occurred while processing taxon '{taxon_name}': {e}. Skipping.")
+                failed_taxa_count += 1
+
+        print(f"\nFinished mapping taxa to nodes.")
+        if self.verbose:
+            print(f"  The 'node_from_taxon_name_dict' mapping is now populated.")
+            total_taxa = len(reduced_taxon_to_gtdb_ids)
+            assigned_count = len(self.node_from_taxon_name_dict)
+            print(f"  Successfully mapped {assigned_count} taxa to MRCA nodes.")
+            # Note: nodes_with_taxa_assigned might be higher than assigned_count if multiple taxa map to the same node.
+            # print(f"  Assigned taxon names to {nodes_with_taxa_assigned} unique nodes.") # This count might be misleading if multiple taxa map to the same node. Use len(self.node_from_taxon_name_dict) instead.
+            print(f"  Failed to map or skipped {failed_taxa_count} taxa (due to insufficient representatives, cross-domain issues, missing IDs, or MRCA errors).")
+            print(f"  Total unique taxa considered: {total_taxa}.")
+            print(f"  Total unique taxa in the input FASTA: {len(all_taxa_set)}.")
+        
+        if save_result_path:
+            self.save_taxa_to_node_mapping(save_result_path)
+
+    def save_taxa_to_node_mapping(self, save_result_path):
+        """
+        Save the taxon names to MRCA nodes mapping to a pickle file.
+        save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+        """
+        if self.node_from_taxon_name_dict is None:
+            raise ValueError("node_from_taxon_name_dict has not been created. Populate it first.")
+        is_valid_type = save_result_path.endswith('.pkl')
+        is_valid_dir = os.path.isdir(os.path.dirname(save_result_path))
+        if not is_valid_type or not is_valid_dir:
+            raise ValueError(f"Invalid save_result_path: {save_result_path}. Call save_taxa_to_node_mapping with a valid path.")
+        # First, convert mappings from taxon names -> nodes to taxon names -> redvals IDs
+        taxon_name_to_redvals_id_dict = {taxon_name: node.redvals_id for taxon_name, node in self.node_from_taxon_name_dict.items()}
+        # Then, save the dictionary to a pickle file
+        with open(save_result_path, 'wb') as f:
+            pickle.dump(taxon_name_to_redvals_id_dict, f)
+
+    def load_taxa_to_node_mapping(self, load_result_path):
+        """
+        Load the taxon names to MRCA nodes mapping from a pickle file.
+        load_result_path (str): Path to load the mapping from. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+        """
+        if not os.path.exists(load_result_path):
+            raise FileNotFoundError(f"File not found: {load_result_path}")
+        with open(load_result_path, 'rb') as f:
+            redvals_id_from_taxon_name_dict = pickle.load(f)
+        # Now use redvals_id_from_taxon_name_dict to create the node_from_taxon_name_dict
+        self.node_from_taxon_name_dict = {taxon_name: self.get_node(redvals_id) for taxon_name, redvals_id in redvals_id_from_taxon_name_dict.items()}
+
+    def get_distance_in_taxon(self, taxon_name):
+        """
+        Given a taxon name, return the RED distance between any pair of leaf nodes (sequences) that have the node representing that taxon as their MRCA.
+
+        taxon_name (str): The name of the taxon (e.g., "g__Escherichia" or "d__Bacteria" or "s__Spirillospora terrae").
+        """
+        # Check if the trees are decorated
+        if not self.is_decorated():
+            raise ValueError("The trees must be decorated to get distance from taxon")
+        # Check if the node_from_taxon_name_dict exists
+        if self.node_from_taxon_name_dict is None:
+            raise ValueError("node_from_taxon_name_dict has not been created. Run a method to populate it first.")
+        # Look up the node
+        if taxon_name not in self.node_from_taxon_name_dict:
+            raise KeyError(f"Taxon name '{taxon_name}' not found in node_from_taxon_name_dict")
+        
+        node = self.node_from_taxon_name_dict[taxon_name]
+        
+        # Check if the node has the red_distance attribute
+        if not hasattr(node, 'red_distance'):
+             # This case should ideally not happen if the tree is decorated, but check for robustness
+            raise AttributeError(f"Node for taxon '{taxon_name}' does not have a red_distance attribute.")
+            
+        return node.red_distance
+    
+    def get_node_from_taxon_name(self, taxon_name):
+        """
+        Given a taxon name, return the node representing that taxon.
+        """
+        return self.node_from_taxon_name_dict[taxon_name]
+    
+
 
 class NodeInfo:
     """Container for information about a node in a decorated GTDB phylogenetic tree.

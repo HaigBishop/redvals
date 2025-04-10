@@ -10,6 +10,7 @@ This example demonstrates working with previously decorated trees:
 2. Convert between GTDB and redvals node IDs
 3. Access other node information
 4. Compute RED distances between any two nodes
+5. Get the RED distance for a taxon
 
 """
 
@@ -25,7 +26,7 @@ BAC_DECORATED_TREE_PATH = "decorated_trees/bac120_r220_decorated.pkl"
 
 # 1. Initialise (already decorated) RedTree object -----------
 # We are using the decorated trees (.pkl files) as input
-red_trees = RedTree(BAC_DECORATED_TREE_PATH, ARC_DECORATED_TREE_PATH)
+red_trees = RedTree(BAC_DECORATED_TREE_PATH, ARC_DECORATED_TREE_PATH, verbose=False)
 
 # The trees are already decorated with RED values
 print("Are the trees decorated:", red_trees.is_decorated())
@@ -136,3 +137,38 @@ print(f"The RED distance between them: {red_distance:.3f}")
 mrca_node_info = red_trees.get_node_info(mrca_node_id)
 print(f"Their MRCA node is: {mrca_node_id} with RED value: {mrca_node_info.red_value:.3f}")
 
+
+
+# 5. Get the RED distances in taxa -----------
+
+# You can choose to either compute the mapping of taxa to nodes (~30 minutes) or load a pre-existing mapping
+load_precomputed_mapping = True
+precomputed_mapping_path = "./taxon_mapping/taxon_to_node_mapping.pkl"
+
+if load_precomputed_mapping:
+    red_trees.load_taxa_to_node_mapping(precomputed_mapping_path)
+else:
+    # For computation of mapping, you require this file available on GTDB website
+    seqs_fasta_path = "ssu_all_r220.fna" 
+    red_trees.map_taxa_to_nodes(seqs_fasta_path, save_result_path=precomputed_mapping_path)
+
+
+# Get the RED distance for a taxon
+taxon_name = "d__Bacteria"
+red_distance = red_trees.get_distance_in_taxon(taxon_name)
+print(f"The RED distance for {taxon_name}: \t\t{red_distance:.6f}")
+
+# Get the RED distance for a taxon
+taxon_name = "p__Nitrospirota"
+red_distance = red_trees.get_distance_in_taxon(taxon_name)
+print(f"The RED distance for {taxon_name}: \t\t{red_distance:.6f}")
+
+# Get the RED distance for a taxon
+taxon_name = "g__Escherichia"
+red_distance = red_trees.get_distance_in_taxon(taxon_name)
+print(f"The RED distance for {taxon_name}: \t\t{red_distance:.6f}")
+
+# Get the RED distance for a taxon
+taxon_name = "s__Spirillospora terrae"
+red_distance = red_trees.get_distance_in_taxon(taxon_name)
+print(f"The RED distance for {taxon_name}: \t{red_distance:.6f}")
