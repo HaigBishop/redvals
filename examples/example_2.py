@@ -17,11 +17,15 @@ This example demonstrates working with previously decorated trees:
 # Import the RedTree class
 from redvals import RedTree
 
+
+# GTDB Release -------------
+GTDB_RELEASE = "r220"
+
 # Decorated Tree Files -------------
 # A Bio.Phylo.Newick.Tree object holding the decorated archeal GTDB phylogenetic tree
-ARC_DECORATED_TREE_PATH = "decorated_trees/ar53_r220_decorated.pkl"
+ARC_DECORATED_TREE_PATH = f"decorated_trees/ar53_{GTDB_RELEASE}_decorated.pkl"
 # A Bio.Phylo.Newick.Tree object holding the decorated bacterial GTDB phylogenetic tree
-BAC_DECORATED_TREE_PATH = "decorated_trees/bac120_r220_decorated.pkl"
+BAC_DECORATED_TREE_PATH = f"decorated_trees/bac120_{GTDB_RELEASE}_decorated.pkl"
 
 
 # 1. Initialise (already decorated) RedTree object -----------
@@ -143,13 +147,13 @@ print(f"Their MRCA node is: {mrca_node_id} with RED value: {mrca_node_info.red_v
 
 # You can choose to either compute the mapping of taxa to nodes (~30 minutes) or load a pre-existing mapping
 load_precomputed_mapping = True
-precomputed_mapping_path = "./taxon_mapping/taxon_to_node_mapping.pkl"
+precomputed_mapping_path = f"./taxon_mappings/taxon_to_node_mapping_{GTDB_RELEASE}.pkl"
 
 if load_precomputed_mapping:
     red_trees.load_taxa_to_node_mapping(precomputed_mapping_path)
 else:
     # For computation of mapping, you require this file available on GTDB website
-    seqs_fasta_path = "ssu_all_r220.fna" 
+    seqs_fasta_path = f"ssu_all_{GTDB_RELEASE}.fna" 
     red_trees.map_taxa_to_nodes(seqs_fasta_path, save_result_path=precomputed_mapping_path)
 
 

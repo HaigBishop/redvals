@@ -19,22 +19,25 @@ import os
 
 
 # Original Newick Tree Files -------------
+# GTDB Release -------------
+GTDB_RELEASE = "r220"
+
 # The original Newick format archeal GTDB phylogenetic tree file
-ARC_TREE_PATH = "trees/ar53_r220.tree"
+ARC_TREE_PATH = f"trees/ar53_{GTDB_RELEASE}.tree"
 # The original Newick format bacterial GTDB phylogenetic tree file
-BAC_TREE_PATH = "trees/bac120_r220.tree"
+BAC_TREE_PATH = f"trees/bac120_{GTDB_RELEASE}.tree"
 
 # RED Values TSV Files -------------
 # The TSV file containing RED values for nodes in the archeal GTDB phylogenetic tree
-ARC_RED_VALUES_PATH = "red_values/gtdbtk_r220_ar53.tsv"
+ARC_RED_VALUES_PATH = f"red_values/gtdbtk_{GTDB_RELEASE}_ar53.tsv"
 # The TSV file containing RED values for nodes in the bacterial GTDB phylogenetic tree
-BAC_RED_VALUES_PATH = "red_values/gtdbtk_r220_bac120.tsv"
+BAC_RED_VALUES_PATH = f"red_values/gtdbtk_{GTDB_RELEASE}_bac120.tsv"
 
 # Decorated Tree Files (OUTPUT) -------------
 # A Bio.Phylo.Newick.Tree object holding the decorated archeal GTDB phylogenetic tree
-ARC_DECORATED_TREE_PATH = "decorated_trees/ar53_r220_decorated.pkl"
+ARC_DECORATED_TREE_PATH = f"decorated_trees/ar53_{GTDB_RELEASE}_decorated.pkl"
 # A Bio.Phylo.Newick.Tree object holding the decorated bacterial GTDB phylogenetic tree
-BAC_DECORATED_TREE_PATH = "decorated_trees/bac120_r220_decorated.pkl"
+BAC_DECORATED_TREE_PATH = f"decorated_trees/bac120_{GTDB_RELEASE}_decorated.pkl"
 
 
 # 1. Initialise RedTree object -----------

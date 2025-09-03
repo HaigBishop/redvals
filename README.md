@@ -2,6 +2,12 @@
 Tool for obtaining and accessing Relative Evolutionary Divergence (RED) values from GTDB phylogenetic trees.
 
 
+## GTDB r226 Warning
+There appears to be an issue with the GTDB release 226 data, which only affects the archaeal tree. The corresponding RED values file (`gtdbtk_r226_ar53.tsv`) seems to be missing RED values for one or two internal nodes. When you run `decorate_from_tsv()` with the r226 files, `redvals` will detect this and warn you. You will be given the option to ignore the issue and proceed. If you choose to ignore it, the undecorated nodes will be assigned an arbitrary RED value of 0.8.
+
+Please be aware that because of this, the pre-computed decorated archaeal tree for r226 provided in this repository (`decorated_trees/bac120_r226_decorated.pkl`) is also affected by this arbitrary value and should be used with caution.
+
+
 ## Set Up
 1. Clone repository
 ```
@@ -10,7 +16,7 @@ cd redvals
 ```
 2. Install dependencies (biopython, pandas and tqdm)
 ```
-conda create -n redvals_env python=3.12 biopython pandas tqdm
+conda create -n redvals_env python=3.12 biopython=1.85 pandas=2.3.2 tqdm=4.67.1
 conda activate redvals_env
 ```
 3. Use package
@@ -90,7 +96,7 @@ Given a taxon name (e.g. g__Escherichia) we can use get_distance_in_taxon(taxon_
 ```python
 # Running map_taxa_to_nodes may take 20-40 minutes
 red_trees.map_taxa_to_nodes("D:/16S_databases/ssu_all_r220.fna", 
-    save_result_path="./taxon_mapping/taxon_to_node_mapping.pkl")
+    save_result_path="./taxon_mappings/taxon_to_node_mapping_220.pkl")
 # Then these are fast
 red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
 s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
@@ -99,7 +105,7 @@ s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
 ### Load Pre-Computed Taxon Name Mappings
 If you previously ran map_taxa_to_nodes and saved the result, you can use load_taxa_to_node_mapping to quicky load taxon -> node mappings
 ```python
-red_trees.load_taxa_to_node_mapping("./taxon_mapping/taxon_to_node_mapping.pkl")
+red_trees.load_taxa_to_node_mapping("./taxon_mappings/taxon_to_node_mapping_220.pkl")
 red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
 s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
 ```
@@ -159,9 +165,9 @@ print("RED value of 'bac00000520':", node_520.red_value)
 ```
 
 ### Taxon to Node Mapping
- - `./taxon_mapping/taxon_to_node_mapping.pkl`
+ - `./taxon_mappings/taxon_to_node_mapping_220.pkl`
 
-This files is a Python pickle file containing a dictionary which simply maps `taxon_name` to `redvals_id` where `redvals_id` is the ID of the node representing that clade. For example, "g__Escherichia" -> "bac00002631" or "p__Nitrospirota" -> "bac00079003". This is used for get_node_from_taxon_name() and get_distance_in_taxon().
+This file is a Python pickle file containing a dictionary which simply maps `taxon_name` to `redvals_id` where `redvals_id` is the ID of the node representing that clade. For example, "g__Escherichia" -> "bac00002631" or "p__Nitrospirota" -> "bac00079003". This is used for get_node_from_taxon_name() and get_distance_in_taxon().
 
 
 

@@ -32,23 +32,26 @@ import random
 
 
 # DEFAULT FILE PATHS ========================================================
+# GTDB Release -------------
+GTDB_RELEASE = "r220"
+
 # Original Newick Tree Files -------------
 # The original Newick format bacterial GTDB phylogenetic tree file
-BAC_TREE_PATH = "trees/bac120_r220.tree"
+BAC_TREE_PATH = f"trees/bac120_{GTDB_RELEASE}.tree"
 # The original Newick format archeal GTDB phylogenetic tree file
-ARC_TREE_PATH = "trees/ar53_r220.tree"
+ARC_TREE_PATH = f"trees/ar53_{GTDB_RELEASE}.tree"
 
 # RED Values TSV Files -------------
 # The TSV file containing RED values for nodes in the bacterial GTDB phylogenetic tree
-BAC_RED_VALUES_PATH = "red_values/gtdbtk_r220_bac120.tsv"
+BAC_RED_VALUES_PATH = f"red_values/gtdbtk_{GTDB_RELEASE}_bac120.tsv"
 # The TSV file containing RED values for nodes in the archeal GTDB phylogenetic tree
-ARC_RED_VALUES_PATH = "red_values/gtdbtk_r220_ar53.tsv"
+ARC_RED_VALUES_PATH = f"red_values/gtdbtk_{GTDB_RELEASE}_ar53.tsv"
 
 # Decorated Tree Files -------------
 # A Bio.Phylo.Newick.Tree object holding the decorated bacterial GTDB phylogenetic tree
-BAC_DECORATED_TREE_PATH = "decorated_trees/bac120_r220_decorated.pkl"
+BAC_DECORATED_TREE_PATH = f"decorated_trees/bac120_{GTDB_RELEASE}_decorated.pkl"
 # A Bio.Phylo.Newick.Tree object holding the decorated archeal GTDB phylogenetic tree
-ARC_DECORATED_TREE_PATH = "decorated_trees/ar53_r220_decorated.pkl"
+ARC_DECORATED_TREE_PATH = f"decorated_trees/ar53_{GTDB_RELEASE}_decorated.pkl"
 
 
 class RedTree:
@@ -373,9 +376,11 @@ class RedTree:
         is_decorated = self.bac_tree.is_decorated and self.arc_tree.is_decorated
         return is_decorated
     
-    def check_decorated(self):
+    def check_decorated(self, check_bac=True, check_arc=True):
         """
         Check if the trees are decorated. Unlike is_decorated(), this function will actually check the attributes of all nodes in the trees.
+
+        The check_bac and check_arc parameters can be altered from defaults to check only one tree.
 
         To be decorated, a tree must:
         - have a .red_value attribute for every node
@@ -384,19 +389,55 @@ class RedTree:
 
         Returns True if the trees are decorated.
         """
-        is_decorated = True
+
+        # Determine which nodes need to be checked
+        all_nodes = []
+        if check_bac:
+            all_nodes.extend(list(self.bac_tree.get_terminals()) + list(self.bac_tree.get_nonterminals()))
+        if check_arc:
+            all_nodes.extend(list(self.arc_tree.get_terminals()) + list(self.arc_tree.get_nonterminals()))
         
-        # Get all nodes from both trees
-        all_nodes = list(self.bac_tree.get_terminals()) + list(self.bac_tree.get_nonterminals()) + \
-                    list(self.arc_tree.get_terminals()) + list(self.arc_tree.get_nonterminals())
-        
-        # Check all required attributes for each node
+        # Check all the nodes
+        undecorated_nodes = []
         for node in all_nodes:
             if not hasattr(node, 'red_value') or not hasattr(node, 'red_distance') or not hasattr(node, 'redvals_id'):
-                is_decorated = False
-                break
+                undecorated_nodes.append(node)
 
-        return is_decorated
+        # If there are any undecorated nodes
+        if undecorated_nodes:
+            # Print an informative warning message
+            tree_text = "bacterial tree" if (not check_arc and check_bac) else "archaeal tree" if (not check_bac and check_arc) else "archaeal and bacterial trees"
+            print(f"\nWARNING: Found {len(undecorated_nodes)} undecorated nodes out of {len(all_nodes)} total nodes. In the {tree_text}.")
+            for i, node in enumerate(undecorated_nodes[:5]):
+                print(f"  - Undecorated node {i+1}/{min(5, len(undecorated_nodes))}:")
+                if hasattr(node, 'redvals_id'):
+                    print(f"    - redvals_id: {node.redvals_id}")
+                else:
+                    print(f"    - redvals_id: MISSING")
+                if hasattr(node, 'name') and node.name:
+                    print(f"    - gtdb_id (name): {node.name}")
+                else:
+                    print(f"    - gtdb_id (name): MISSING or empty")
+                print(f"    - Has red_value: {hasattr(node, 'red_value')}")
+                print(f"    - Has red_distance: {hasattr(node, 'red_distance')}")
+            
+            # In this case we prompt the user giving them the option to ignore this
+            prompt = "This may have been caused by a known issue with GTDB r226 data (see the redvals README.md for info). \nWould you like to ignore this and assign a default RED value of 0.8 to the undecorated nodes? (y/n): "
+            user_response = input(prompt)
+            if user_response.lower() == "y":
+                # Set the missing RED values to 0.8
+                print("Setting RED value to 0.8 for all undecorated nodes...")
+                for node in undecorated_nodes:
+                    node.red_value = 0.8
+                    node.red_distance = (1 - 0.8) * 2
+ 
+                # Pretend that didn't happen, lol
+                return True
+            else:
+                # Face the truth, lol
+                return False
+
+        return True
     
     def decorate_from_tsv(self, bac_red_values_path=None, arc_red_values_path=None, progress_bar=True):
         """
@@ -439,10 +480,12 @@ class RedTree:
                         raise ValueError(f"RED value for leaf node '{node_column}' is not 1.0")
                     # Get the node
                     leaf_node = self.get_node(node_column)
-                    # Assign the RED value
-                    leaf_node.red_value = red_value
-                    # Assign the RED distance
-                    leaf_node.red_distance = (1 - red_value) * 2
+                    # Before assigning the RED value, check if it is already decorated
+                    if hasattr(leaf_node, 'red_value'):
+                        print(f"WARNING: Leaf node {leaf_node.redvals_id} ({node_column}) already decorated. Skipping.")
+                    else:
+                        # Assign the RED value and RED distance
+                        leaf_node.red_value, leaf_node.red_distance = red_value, (1 - red_value) * 2
                 
                 # If the node column has two leaf nodes
                 else:
@@ -452,14 +495,20 @@ class RedTree:
                     leaf_node_1 = self.get_node(leaf_nodes[0])
                     leaf_node_2 = self.get_node(leaf_nodes[1])
                     # Get the MRCA
-                    mrca_node = tree.common_ancestor(leaf_node_1, leaf_node_2)
+                    # Use domain-aware MRCA resolution to avoid cross-tree mistakes
+                    mrca_node = self.get_mrca_node(leaf_node_1, leaf_node_2)
                     # Check that the MRCA is not None
                     if mrca_node is None:
                         raise ValueError(f"MRCA for pair of leaf nodes '{node_column}' is not found")
-                    # Assign the RED value
-                    mrca_node.red_value = red_value
-                    # Assign the RED distance
-                    mrca_node.red_distance = (1 - red_value) * 2
+                    # Before assigning the RED value, check if it is already decorated
+                    if hasattr(mrca_node, 'red_value'):
+                        if mrca_node.red_value != red_value:
+                            print(f"WARNING: MRCA node {mrca_node.redvals_id} (from '{node_column}') already decorated with a DIFFERENT RED value. Old: {mrca_node.red_value}, New: {red_value}. Skipping.")
+                        else:
+                            print(f"WARNING: MRCA node {mrca_node.redvals_id} (from '{node_column}') already decorated. Skipping.")
+                    else:
+                        # Assign the RED value and RED distance
+                        mrca_node.red_value, mrca_node.red_distance = red_value, (1 - red_value) * 2
                 
                 # Update progress bar if enabled
                 if progress_bar:
@@ -476,20 +525,26 @@ class RedTree:
         # Decorate both trees
         print(f"Decorating the archaeal tree with RED values from {arc_red_values_path}...")
         decorate_tree(arc_red_values_path, self.arc_tree, progress_bar=progress_bar)
+
+        # Check that all archaeal nodes are now decorated
+        if not self.check_decorated(check_arc=True, check_bac=False):
+            raise ValueError("The trees were failed to be decorated properly. This is a known issue with GTDB r226. See the redvals README.md.")
+
         print(f"Decorating the bacterial tree with RED values from {bac_red_values_path}...")
         decorate_tree(bac_red_values_path, self.bac_tree, progress_bar=progress_bar)
 
-        # Check that ALL nodes are decorated
-        if not self.check_decorated():
-            raise ValueError("The trees were failed to be decorated properly")
-        else:
-            print("Trees successfully decorated with RED values")
-            # Set the is_decorated attribute of the trees
-            self.bac_tree.is_decorated = True
-            self.arc_tree.is_decorated = True
-            # Make a dictionary for NodeInfo objects
-            self.make_node_info_dict()
-            print()
+        # Check that all bacterial nodes are now decorated
+        if not self.check_decorated(check_arc=False, check_bac=True):
+             raise ValueError("The trees were failed to be decorated properly")
+
+        # If we have reached here, both trees were decorated successfully
+        print("Both trees successfully decorated with RED values")
+        # Set the is_decorated attribute of the trees
+        self.bac_tree.is_decorated = True
+        self.arc_tree.is_decorated = True
+        # Make a dictionary for NodeInfo objects
+        self.make_node_info_dict()
+        print()
     
     def decorate_from_calc(self):
         """
@@ -667,7 +722,7 @@ class RedTree:
         Args:
             seqs_fasta_path (str): Path to the FASTA file with sequence information and taxonomy.
                                    Headers should be formatted like: >{GTDB_ID}~{lineage} [...]
-            save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+            save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mappings/taxon_to_node_mapping_220.pkl")
 
         Example seqs_fasta_path (e.g. "D:/16S_databases/ssu_all_r220.fna"):
             >RS_GCF_018344175.1~NZ_JAAMUS010000074.1 d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli [location=16..1459] [ssu_len=1444] [contig_len=1463]
@@ -907,7 +962,7 @@ class RedTree:
     def save_taxa_to_node_mapping(self, save_result_path):
         """
         Save the taxon names to MRCA nodes mapping to a pickle file.
-        save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+        save_result_path (str): Path to save the mapping to. (e.g. "./taxon_mappings/taxon_to_node_mapping_220.pkl")
         """
         if self.node_from_taxon_name_dict is None:
             raise ValueError("node_from_taxon_name_dict has not been created. Populate it first.")
@@ -924,7 +979,7 @@ class RedTree:
     def load_taxa_to_node_mapping(self, load_result_path):
         """
         Load the taxon names to MRCA nodes mapping from a pickle file.
-        load_result_path (str): Path to load the mapping from. (e.g. "./taxon_mapping/taxon_to_node_mapping.pkl")
+        load_result_path (str): Path to load the mapping from. (e.g. "./taxon_mappings/taxon_to_node_mapping_220.pkl")
         """
         if not os.path.exists(load_result_path):
             raise FileNotFoundError(f"File not found: {load_result_path}")
