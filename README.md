@@ -3,7 +3,7 @@ Tool for obtaining and accessing Relative Evolutionary Divergence (RED) values f
 
 
 ## GTDB r226 Warning
-There appears to be an issue with the GTDB release 226 data, which only affects the archaeal tree. The corresponding RED values file (`gtdbtk_r226_ar53.tsv`) seems to be missing RED values for one or two internal nodes. When you run `decorate_from_tsv()` with the r226 files, `redvals` will detect this and warn you. You will be given the option to ignore the issue and proceed. If you choose to ignore it, the undecorated nodes will be assigned an arbitrary RED value of 0.8.
+There appears to be an issue with the GTDB release 226 data, which only affects the archaeal tree. The corresponding RED values file (`gtdbtk_r226_ar53.tsv`) seems to use a different root to the tree file, which leads to the lack of RED values for two internal nodes. When you run `decorate_from_tsv()` with the r226 files, `redvals` will detect this and warn you. You will be given the option to ignore the issue and proceed. If you choose to ignore it, the undecorated nodes will be assigned an arbitrary RED value of 0.8.
 
 Please be aware that because of this, the pre-computed decorated archaeal tree for r226 provided in this repository (`decorated_trees/bac120_r226_decorated.pkl`) is also affected by this arbitrary value and should be used with caution.
 

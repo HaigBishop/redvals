@@ -460,6 +460,25 @@ class RedTree:
         def decorate_tree(red_values_path, tree, progress_bar=False):
             # Read the TSV file
             red_values_df = pd.read_csv(red_values_path, sep="\t", header=None, names=["nodes", "RED"])
+            
+            # Verify that the number of rows in the TSV file corresponds to the number of nodes in the tree
+            num_tsv_rows = len(red_values_df)
+            num_tree_nodes = len(list(tree.get_terminals())) + len(list(tree.get_nonterminals()))
+            if num_tsv_rows != num_tree_nodes:
+                print(f"WARNING: TSV node count ({num_tsv_rows}) does not match tree node count ({num_tree_nodes}) for {os.path.basename(red_values_path)}.")
+
+            # Verify that the root nodes are the same between the tree and the TSV file
+            root_row = red_values_df.loc[red_values_df['RED'].idxmin()]
+            root_node_column = root_row['nodes']
+            if '|' not in root_node_column:
+                print(f"WARNING: Could not determine root from TSV file: row with minimum RED value is not an internal node for {os.path.basename(red_values_path)}.")
+            leaf_ids = root_node_column.split('|')
+            leaf_node_1 = self.get_node(leaf_ids[0])
+            leaf_node_2 = self.get_node(leaf_ids[1])
+            tsv_root_node = tree.common_ancestor(leaf_node_1, leaf_node_2)
+            if tsv_root_node != tree.root:
+                print(f"WARNING: Root node mismatch in {os.path.basename(red_values_path)}: tree root is {tree.root.redvals_id}, but TSV implies root is {tsv_root_node.redvals_id}.")
+
             # Randomly shuffle rows of the DataFrame
             red_values_df = red_values_df.sample(frac=1).reset_index(drop=True)
             
@@ -495,8 +514,7 @@ class RedTree:
                     leaf_node_1 = self.get_node(leaf_nodes[0])
                     leaf_node_2 = self.get_node(leaf_nodes[1])
                     # Get the MRCA
-                    # Use domain-aware MRCA resolution to avoid cross-tree mistakes
-                    mrca_node = self.get_mrca_node(leaf_node_1, leaf_node_2)
+                    mrca_node = tree.common_ancestor(leaf_node_1, leaf_node_2)
                     # Check that the MRCA is not None
                     if mrca_node is None:
                         raise ValueError(f"MRCA for pair of leaf nodes '{node_column}' is not found")
