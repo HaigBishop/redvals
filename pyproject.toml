@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "redvals"
-version = "0.1.1"
+version = "0.2.0"
 description = "Tool for obtaining and accessing RED values from GTDB phylogenetic trees."
 readme = "README.md"
 authors = [
