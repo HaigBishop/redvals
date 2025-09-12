@@ -209,7 +209,7 @@ This tool processes data from the Genome Taxonomy Database (GTDB). The GTDB data
 
 ### Other Info
 
-**Version:** 0.3.0 (2025-09-10)
+**Version:** 0.3.0 (2025-09-12)
 **Author:** Haig Bishop
 **Email:** haig.bishop@pg.canterbury.ac.nz
 **GitHub:** https://github.com/HaigBishop/redvals
