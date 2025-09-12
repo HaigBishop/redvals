@@ -457,7 +457,7 @@ class RedTree:
         if not os.path.exists(arc_red_values_path):
             raise FileNotFoundError(f"Archaeal RED values file not found at {arc_red_values_path}")
 
-        def decorate_tree(red_values_path, tree, progress_bar=False):
+        def decorate_tree_tsv(red_values_path, tree, progress_bar=False):
             # Read the TSV file
             red_values_df = pd.read_csv(red_values_path, sep="\t", header=None, names=["nodes", "RED"])
             
@@ -542,18 +542,18 @@ class RedTree:
         
         # Decorate both trees
         print(f"Decorating the archaeal tree with RED values from {arc_red_values_path}...")
-        decorate_tree(arc_red_values_path, self.arc_tree, progress_bar=progress_bar)
+        decorate_tree_tsv(arc_red_values_path, self.arc_tree, progress_bar=progress_bar)
 
         # Check that all archaeal nodes are now decorated
         if not self.check_decorated(check_arc=True, check_bac=False):
             raise ValueError("The trees were failed to be decorated properly. This is a known issue with GTDB r226. See the redvals README.md.")
 
         print(f"Decorating the bacterial tree with RED values from {bac_red_values_path}...")
-        decorate_tree(bac_red_values_path, self.bac_tree, progress_bar=progress_bar)
+        decorate_tree_tsv(bac_red_values_path, self.bac_tree, progress_bar=progress_bar)
 
         # Check that all bacterial nodes are now decorated
         if not self.check_decorated(check_arc=False, check_bac=True):
-             raise ValueError("The trees were failed to be decorated properly")
+             raise ValueError("The trees were failed to be decorated properly.")
 
         # If we have reached here, both trees were decorated successfully
         print("Both trees successfully decorated with RED values")
@@ -564,11 +564,217 @@ class RedTree:
         self.make_node_info_dict()
         print()
     
-    def decorate_from_calc(self):
+    def decorate_from_calc(self, progress_bar=True, redecorate_ok=False, redecorate_difference_threshold = 0.01):
         """
         Decorate the trees (with RED values) by calculating RED values.
+
+        - The root of the tree have RED of 0.0
+        - Leaf nodes have a RED value of 1.0
+        - For internal nodes, the RED value is linearly interpolated from the branch lengths comprising its lineage, as defined by:
+            - p + (d/u) × (1 – p), where:
+               - p is the RED of its parent
+               - d is the branch length to its parent
+               - u is the average branch length from the parent node to all extant taxa descendant
+
+        redecorate_ok - prevents errors from redecorating the trees. good for checking RED value validity
+        redecorate_difference_threshold - if old and new RED values are difference beyond redecorate_difference_threshold there will be warnings
         """
-        raise NotImplementedError("This function is not yet implemented")
+        # Check if the trees are decorated
+        if not redecorate_ok and self.is_decorated():
+            raise ValueError("The trees are already decorated")
+
+
+        def decorate_tree_calc(tree, progress_bar):
+            """
+            Decorate a tree using the algorithm from Haig based on https://gtdb.ecogenomic.org/methods
+            """
+            
+            # Calculate mean distances for all nodes ----------------------------------
+            clades_to_iterate = list(tree.find_clades(order='postorder'))
+            if progress_bar:
+                pbar1 = tqdm(total=len(clades_to_iterate), desc="Calculating mean lineage distances", unit="nodes")
+
+            mean_distances_dict = {}
+            # Traverse the tree in *reverse* DFS, calculating mean distances for each clade
+            for i, clade in enumerate(clades_to_iterate):
+
+                # If it is a leaf node, the mean distance is 0.0
+                if clade.is_terminal():
+                    mean_distances_dict[clade.redvals_id] = 0.0
+                else:
+                    # Internal node: Get mean distance for each branch
+                    sub_clade_1, sub_clade_2 = tuple(clade.clades)
+                    # Number of leaf nodes from each clade
+                    num_terminals_sub_clade_1 = sub_clade_1.count_terminals() # Clade 1
+                    num_terminals_sub_clade_2 = sub_clade_2.count_terminals() # Clade 2
+                    num_terminals = num_terminals_sub_clade_1 + num_terminals_sub_clade_2 # Both clades
+                    # Get mean distances for each sub clade
+                    sub_clade_1_component = (mean_distances_dict[sub_clade_1.redvals_id] + sub_clade_1.branch_length)
+                    sub_clade_2_component = (mean_distances_dict[sub_clade_2.redvals_id] + sub_clade_2.branch_length)
+                    # Sum weighted by proportion of terminals
+                    mean_distances_dict[clade.redvals_id] = ((num_terminals_sub_clade_1 / num_terminals) * sub_clade_1_component) + ((num_terminals_sub_clade_2 / num_terminals) * sub_clade_2_component)
+
+                if progress_bar:
+                    pbar1.update(1)
+                    if i % 100 == 0 or i == len(clades_to_iterate) - 1:
+                        percent = ((i + 1) / len(clades_to_iterate)) * 100
+                        pbar1.set_description(f"Calculating mean lineage distances... ({percent:.1f}%)")
+
+            if progress_bar:
+                pbar1.close()
+
+
+
+            # Decorate all nodes with RED values ----------------------
+            # Get all nodes
+            all_nodes = list(tree.find_clades(order="preorder"))
+            # The number of internal nodes in half minus 1
+            num_internal_nodes = int((len(all_nodes) - 1) / 2)
+
+            # Setup progress bar if requested
+            # Progress bar is only for internal nodes, because leaf nodes are instant
+            if progress_bar:
+                pbar = tqdm(total=num_internal_nodes, desc="Decorating tree", unit="nodes")
+            
+            # Traverse the whole tree's nodes in DFS
+            i = 0
+            for node in all_nodes:
+
+                # If root node
+                if node == tree.root:
+                    is_internal_node = False
+                    # RED value of root is 0.0
+                    red_val = 0.0
+
+                # If leaf node
+                elif node.is_terminal():
+                    is_internal_node = False
+                    # RED value of leaves are 1.0
+                    red_val = 1.0
+
+                # Internal node
+                else:
+                    is_internal_node = True
+                        
+                    # Get the path of nodes from the root node to this node (excluding the root clade)
+                    path_from_root = tree.get_path(node)
+
+                    # If len(path) is 1, this node is a direct child of the root node
+                    if len(path_from_root) == 1:
+                        # Parent is the root node
+                        parent_node = tree.root
+
+                    # Not the root node
+                    else:
+                        # Get the parent node
+                        parent_node = path_from_root[-2]
+
+                    # Calculate RED value ----------------------
+                    #  p + (d/u) × (1 – p), where:
+                    #     - p is the RED of its parent
+                    #     - d is the branch length to its parent
+                    #     - u is the average branch length from the parent node to all extant taxa descendant
+
+                    # p - Get RED value of its parent 
+                    parent_red_val = parent_node.red_value
+                    
+                    # d - Get length to parent 
+                    length_to_parent = node.branch_length
+
+                    # # u - Get mean distance to all descendent leaf nodes
+                    mean_length_all_leaves = mean_distances_dict[node.redvals_id] + length_to_parent
+
+                    # Calculate the RED value
+                    red_val = parent_red_val + (length_to_parent / mean_length_all_leaves) * (1.0 - parent_red_val)
+
+
+
+                # Assign the RED value ------------------
+
+                # Before assigning the RED value, check if it is already decorated
+                if hasattr(node, 'red_value'):
+                    # If we are okay with redecorating, just do it
+                    if redecorate_ok:
+
+                        # If they are sufficiently different
+                        is_different = abs(node.red_value - red_val) >= redecorate_difference_threshold
+                        if is_different:
+                            # Print information/warning
+                            print(f"WARNING: Internal node {node.redvals_id} already decorated with a DIFFERENT RED value. Old: {node.red_value}, New: {red_val}. Replacing.")
+
+
+                        # Assign RED value and RED distance
+                        node.red_value, node.red_distance = red_val, (1 - red_val) * 2
+
+                    # If we are NOT okay with redecorating
+                    else:
+                        # If they are sufficiently different
+                        is_different = abs(node.red_value - red_val) >= redecorate_difference_threshold
+                        if is_different:
+                            # Ignore (and dont relabel)
+                            # pass
+
+                            # Print warning (and dont relabel)
+                            print(f"WARNING: Internal node {node.redvals_id} already decorated with a DIFFERENT RED value. Old: {node.red_value}, New: {red_val}. Skipping.")
+
+                            # Raise an error
+                            # raise ValueError(f"WARNING: Internal node {node.redvals_id} already decorated with a DIFFERENT RED value. Old: {node.red_value}, New: {red_val}. {"Skipping." if not redecorate_ok else "Replacing."}")
+
+                        # They are the same
+                        else:
+                            # Ignore (and dont relabel)
+                            # pass
+
+                            # Print warning (and dont relabel)
+                            print(f"WARNING: Internal node {node.redvals_id} already decorated. Skipping.")
+
+                            # Raise an error
+                            # raise ValueError(f"WARNING: Internal node {node.redvals_id} already decorated.)
+
+                else:
+                    # Assign the RED value and RED distance
+                    node.red_value, node.red_distance = red_val, (1 - red_val) * 2
+
+                # Update progress bar if enabled
+                # (plus we only update for internal nodes, because leaf nodes are fast)
+                if progress_bar and is_internal_node:
+                    i += 1
+                    pbar.update(1)
+                    # Add percentage complete to description
+                    if i % 100 == 0 or i == num_internal_nodes - 1:
+                        percent = (i / num_internal_nodes) * 100
+                        pbar.set_description(f"Decorating... ({percent:.1f}%)")
+                    
+            # Close progress bar
+            if progress_bar:
+                pbar.close()
+
+
+        # Decorate Archaeal tree
+        print(f"Decorating the archaeal tree with calculated RED values...")
+        decorate_tree_calc(self.arc_tree, progress_bar)
+
+        # Check that all archaeal nodes are now decorated
+        if not self.check_decorated(check_arc=True, check_bac=False):
+            raise ValueError("The trees were failed to be decorated properly.")
+
+        # Decorate Bacterial tree
+        print(f"Decorating the bacterial tree with calculated RED values...")
+        decorate_tree_calc(self.bac_tree, progress_bar)
+
+        # Check that all bacterial nodes are now decorated
+        if not self.check_decorated(check_arc=False, check_bac=True):
+             raise ValueError("The trees were failed to be decorated properly.")
+
+        # If we have reached here, both trees were decorated successfully
+        print("Both trees successfully decorated with RED values")
+        # Set the is_decorated attribute of the trees
+        self.bac_tree.is_decorated = True
+        self.arc_tree.is_decorated = True
+        # Make a dictionary for NodeInfo objects
+        self.make_node_info_dict()
+        print()
+
 
     def get_mrca_node_from_ids(self, node_1_id, node_2_id):
         """

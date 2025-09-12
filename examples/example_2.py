@@ -27,6 +27,9 @@ ARC_DECORATED_TREE_PATH = f"decorated_trees/ar53_{GTDB_RELEASE}_decorated.pkl"
 # A Bio.Phylo.Newick.Tree object holding the decorated bacterial GTDB phylogenetic tree
 BAC_DECORATED_TREE_PATH = f"decorated_trees/bac120_{GTDB_RELEASE}_decorated.pkl"
 
+# Pre-Computed Taxon Name Mappings -------------
+PRECOMPUTED_TAXON_MAPPING = f"./taxon_mappings/taxon_to_node_mapping_{GTDB_RELEASE}.pkl"
+
 
 # 1. Initialise (already decorated) RedTree object -----------
 # We are using the decorated trees (.pkl files) as input
@@ -147,14 +150,13 @@ print(f"Their MRCA node is: {mrca_node_id} with RED value: {mrca_node_info.red_v
 
 # You can choose to either compute the mapping of taxa to nodes (~30 minutes) or load a pre-existing mapping
 load_precomputed_mapping = True
-precomputed_mapping_path = f"./taxon_mappings/taxon_to_node_mapping_{GTDB_RELEASE}.pkl"
 
 if load_precomputed_mapping:
-    red_trees.load_taxa_to_node_mapping(precomputed_mapping_path)
+    red_trees.load_taxa_to_node_mapping(PRECOMPUTED_TAXON_MAPPING)
 else:
     # For computation of mapping, you require this file available on GTDB website
     seqs_fasta_path = f"ssu_all_{GTDB_RELEASE}.fna" 
-    red_trees.map_taxa_to_nodes(seqs_fasta_path, save_result_path=precomputed_mapping_path)
+    red_trees.map_taxa_to_nodes(seqs_fasta_path, save_result_path=PRECOMPUTED_TAXON_MAPPING)
 
 
 # Get the RED distance for a taxon

@@ -2,12 +2,6 @@
 Tool for obtaining and accessing Relative Evolutionary Divergence (RED) values from GTDB phylogenetic trees.
 
 
-## GTDB r226 Warning
-There appears to be an issue with the GTDB release 226 data, which only affects the archaeal tree. The corresponding RED values file (`gtdbtk_r226_ar53.tsv`) seems to use a different root to the tree file, which leads to the lack of RED values for two internal nodes. When you run `decorate_from_tsv()` with the r226 files, `redvals` will detect this and warn you. You will be given the option to ignore the issue and proceed. If you choose to ignore it, the undecorated nodes will be assigned an arbitrary RED value of 0.8.
-
-Please be aware that because of this, the pre-computed decorated archaeal tree for r226 provided in this repository (`decorated_trees/bac120_r226_decorated.pkl`) is also affected by this arbitrary value and should be used with caution.
-
-
 ## Set Up
 1. Clone repository
 ```
@@ -16,7 +10,7 @@ cd redvals
 ```
 2. Install dependencies (biopython, pandas and tqdm)
 ```
-conda create -n redvals_env python=3.12 biopython=1.85 pandas=2.3.2 tqdm=4.67.1
+conda create -n redvals_env python=3.12 biopython pandas tqdm
 conda activate redvals_env
 ```
 3. Use package
@@ -34,25 +28,35 @@ from redvals import RedTree
 ### Load Undecorated Trees (Init Method 1)
 This loads original Newick trees with no RED values. Also assigns 'redvals IDs' to all nodes.
 ```python
-red_trees = RedTree("trees/bac120_r220.tree", "trees/ar53_r220.tree")
+red_trees = RedTree("trees/bac120_r226.tree", "trees/ar53_r226.tree")
+```
+
+### Decorate Trees (by calculating RED values - takes 30-60 minutes)
+
+This calculates and adds RED values and RED distances to every node in both trees.
+
+```python
+red_trees.decorate_from_calc()
 ```
 
 ### Decorate Trees from TSVs (takes 30-90 minutes)
-This adds RED values and RED distances to every node in both trees.
+
+This adds RED values and RED distances to every node in both trees. The values are precomputed from TSV files that originate from the GTDB-tk package. Although due to differences in tree rootings, it is recommended to calculate RED values from scratch using decorate_from_calc().
+
 ```python
-red_trees.decorate_from_tsv("red_values/gtdbtk_r220_bac120.tsv", "red_values/gtdbtk_r220_ar53.tsv")
+red_trees.decorate_from_tsv("red_values/gtdbtk_r226_bac120.tsv", "red_values/gtdbtk_r226_ar53.tsv")
 ```
 
 ### Write Decorated Trees
 This saves the trees with the RED values and distances as .pkl files, avoiding repetition of the time-consuming decoration process.
 ```python
-red_trees.write_decorated_trees("decorated_trees/bac120_r220_decorated.pkl", "decorated_trees/ar53_r220_decorated.pkl")
+red_trees.write_decorated_trees("decorated_trees/bac120_r226_decorated.pkl", "decorated_trees/ar53_r226_decorated.pkl")
 ```
 
 ### Load Decorated Trees (Init Method 2)
 Load the already decorated trees originating from write_decorated_trees.
 ```python
-red_trees = RedTree("decorated_trees/bac120_r220_decorated.pkl", "decorated_trees/ar53_r220_decorated.pkl")
+red_trees = RedTree("decorated_trees/bac120_r226_decorated.pkl", "decorated_trees/ar53_r226_decorated.pkl")
 ```
 
 ### Convert Node IDs
@@ -92,11 +96,11 @@ red_distance, mrca_node_id = red_trees.dist_between_nodes("bac00000001", "RS_GCF
 ```
 
 ### Map Taxon Names to Nodes
-Given a taxon name (e.g. g__Escherichia) we can use get_distance_in_taxon(taxon_name) to get the RED distance between any pair of leaf nodes who's MRCA is the node representing that taxon. Before using get_distance_in_taxon(taxon_name) however, map_nodes_to_taxa(seqs_fasta) must be run, where seqs_fasta is a GTDB database FASTA file such as ssu_all_r220.fna.
+Given a taxon name (e.g. g__Escherichia) we can use get_distance_in_taxon(taxon_name) to get the RED distance between any pair of leaf nodes who's MRCA is the node representing that taxon. Before using get_distance_in_taxon(taxon_name) however, map_nodes_to_taxa(seqs_fasta) must be run, where seqs_fasta is a GTDB database FASTA file such as ssu_all_r226.fna.
 ```python
 # Running map_taxa_to_nodes may take 20-40 minutes
-red_trees.map_taxa_to_nodes("D:/16S_databases/ssu_all_r220.fna", 
-    save_result_path="./taxon_mappings/taxon_to_node_mapping_220.pkl")
+red_trees.map_taxa_to_nodes("D:/16S_databases/ssu_all_r226.fna", 
+    save_result_path="./taxon_mappings/taxon_to_node_mapping_226.pkl")
 # Then these are fast
 red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
 s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
@@ -105,7 +109,7 @@ s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
 ### Load Pre-Computed Taxon Name Mappings
 If you previously ran map_taxa_to_nodes and saved the result, you can use load_taxa_to_node_mapping to quicky load taxon -> node mappings
 ```python
-red_trees.load_taxa_to_node_mapping("./taxon_mappings/taxon_to_node_mapping_220.pkl")
+red_trees.load_taxa_to_node_mapping("./taxon_mappings/taxon_to_node_mapping_226.pkl")
 red_distance = red_trees.get_distance_in_taxon("p__Nitrospirota")
 s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
 ```
@@ -116,15 +120,17 @@ s_terrae_node = red_trees.get_node_from_taxon_name("s__Spirillospora terrae")
 ### Original Newick Tree Files
  - `./trees/bac120_r220.tree`
  - `./trees/ar53_r220.tree`
+ - `./trees/bac120_r226.tree`
+ - `./trees/ar53_r226.tree`
 
-These are the GTDB phylogenetic trees (release 220) in Newick format. Obtained from: https://gtdb.ecogenomic.org/downloads
+These are the GTDB phylogenetic trees (release 220 & 226) in Newick format. Obtained from: https://gtdb.ecogenomic.org/downloads
 
 Example Usage:
 ```python
 from Bio import Phylo
 
 # Load the Newick tree file of bacterial GTDB tree
-bac120_tree = Phylo.read("./trees/bac120_r220.tree", "newick")
+bac120_tree = Phylo.read("./trees/bac120_r226.tree", "newick")
 
 # Print some info about the tree
 terminal_nodes = bac120_tree.get_terminals()
@@ -138,17 +144,21 @@ print("Number of internal nodes:", len(nonterminal_nodes))
 ### RED Values TSV Files
  - `./red_values/gtdbtk_r220_bac120.tsv`
  - `./red_values/gtdbtk_r220_ar53.tsv`
+ - `./red_values/gtdbtk_r226_bac120.tsv`
+ - `./red_values/gtdbtk_r226_ar53.tsv`
 
-These TSV files contain the RED values for all nodes in each tree. They originate from the release 220 gtdbtk_package directory from: https://gtdb.ecogenomic.org/downloads
-i.e. https://data.ace.uq.edu.au/public/gtdb/data/releases/release220/220.0/auxillary_files/gtdbtk_package/full_package/
+These TSV files contain the RED values for all nodes in each tree. The RED values can be loaded into a RedTree object using the decorate_from_tsv() method, however it is recomended that RED values be calculated using decorate_from_calc() instead (or from the pre-decorated trees in the .pkl files). 
 
-There is one row for each node (terminal and nonterminal). The second column holds the RED value assigned to the given node. The first column holds one or two leaf IDs (AKA genome IDs). For example in the first column we might find "GB_GCA_020721905.1" or "GB_GCA_026414805.1|GB_GCA_020721905.1". When there is a single leaf ID, this is a leaf node, and therefore the RED value in column two is 1.0. But if there are two leaf IDs seperated by a "|" symbol, this row represents an internal node. Specifically, it represents the node that is the most recent common ancestor (MRCA) of the two leaf IDs in column one.
+These TSV files originate from the gtdbtk_package directory from: https://gtdb.ecogenomic.org/downloads
+i.e. https://data.ace.uq.edu.au/public/gtdb/data/releases/release220/220.0/auxillary_files/gtdbtk_package/full_package/ . There is one row for each node (terminal and nonterminal). The second column holds the RED value assigned to the given node. The first column holds one or two leaf IDs (AKA genome IDs). For example in the first column we might find "GB_GCA_020721905.1" or "GB_GCA_026414805.1|GB_GCA_020721905.1". When there is a single leaf ID, this is a leaf node, and therefore the RED value in column two is 1.0. But if there are two leaf IDs seperated by a "|" symbol, this row represents an internal node. Specifically, it represents the node that is the most recent common ancestor (MRCA) of the two leaf IDs in column one.
 
 ### Decorated Tree Files
  - `./decorated_trees/bac120_r220_decorated.pkl`
  - `./decorated_trees/ar53_r220_decorated.pkl`
+ - `./decorated_trees/bac120_r226_decorated.pkl`
+ - `./decorated_trees/ar53_r226_decorated.pkl`
 
-These files are Python pickle files, each containing a Bio.Phylo.Newick.Tree object. Loading these objects (see below) results in the same object as loading the .tree files (as above), but the difference is that they are decorated with RED values, and RED distances.
+These files are Python pickle files, each containing a Bio.Phylo.Newick.Tree object. Loading these objects (see below) results in the same object as loading the .tree files (as above), but the difference is that they are decorated with RED values, and RED distances, which were calculated using `decorate_from_calc()`.
 
 Example Usage:
 ```python
@@ -156,7 +166,7 @@ from Bio import Phylo
 import pickle
 
 # Load the pickle file of decorated bacterial GTDB tree
-with open("./out/bac120_r220_decorated.pkl", "rb") as f:
+with open("./out/bac120_r226_decorated.pkl", "rb") as f:
     decorated_bac120_tree = pickle.load(f)
 
 # Access a RED value using the tree
@@ -166,6 +176,7 @@ print("RED value of 'bac00000520':", node_520.red_value)
 
 ### Taxon to Node Mapping
  - `./taxon_mappings/taxon_to_node_mapping_220.pkl`
+ - `./taxon_mappings/taxon_to_node_mapping_226.pkl`
 
 This file is a Python pickle file containing a dictionary which simply maps `taxon_name` to `redvals_id` where `redvals_id` is the ID of the node representing that clade. For example, "g__Escherichia" -> "bac00002631" or "p__Nitrospirota" -> "bac00079003". This is used for get_node_from_taxon_name() and get_distance_in_taxon().
 
@@ -178,8 +189,7 @@ Contributions are very welcome.
 1. **Fork the repository** and clone it locally
 2. **Create a new branch** for your feature or bug fix
 3. **Make your changes** and write tests if applicable
-4. **Run existing tests** to ensure nothing was broken
-5. **Submit a pull request** with a clear description of your changes
+4. **Submit a pull request** with a clear description of your changes
 
 
 ## To Do
@@ -199,7 +209,7 @@ This tool processes data from the Genome Taxonomy Database (GTDB). The GTDB data
 
 ### Other Info
 
-**Version:** 0.2.0 (2025-09-04)
+**Version:** 0.3.0 (2025-09-10)
 **Author:** Haig Bishop
 **Email:** haig.bishop@pg.canterbury.ac.nz
 **GitHub:** https://github.com/HaigBishop/redvals

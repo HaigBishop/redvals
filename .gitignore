@@ -3,5 +3,3 @@ __pycache__/
 .pytest_cache/
 ssu_all_r220.fna
 ssu_all_r226.fna
-verify_tree_tsv_coverage_1.py
-verify_tree_tsv_coverage_2.py
